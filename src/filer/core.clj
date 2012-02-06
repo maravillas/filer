@@ -107,12 +107,24 @@
 (defn test-doc
   [all-freqs classes class doc]
   (let [scores (classify all-freqs classes doc)]
-    [(.endsWith (.getAbsolutePath (.getParentFile doc)) (select-class scores)) doc scores]))
+    {:correct (.endsWith (.getAbsolutePath (.getParentFile doc)) (select-class scores))
+     :doc doc
+     :scores scores}))
 
 (defn test-class
   [all-freqs classes class]
   (map #(test-doc all-freqs classes class %) (:test-data class)))
 
+(defn summarize-class-results
+  [class results]
+  (let [correct (count (filter :correct results))
+        total (count results)]
+    {:class (:name class)
+     :correct correct
+     :incorrect (- total correct)
+     :accuracy (if (zero? total) 0 (* 100.0 (/ correct total)))}))
+
 (defn test-all
   [all-freqs classes]
-  (filter #(not (first %)) (mapcat #(test-class all-freqs classes %) classes)))
+  (map #(summarize-class-results % (test-class all-freqs classes %)) classes))
+
