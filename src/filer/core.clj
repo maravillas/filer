@@ -2,6 +2,7 @@
   (:use [clojure.java.io])
   (:require [clojure.string :as s])
   (:import [java.io StringWriter FilenameFilter]
+           [java.math RoundingMode MathContext]
            [org.apache.pdfbox.util PDFTextStripper]
            [org.apache.pdfbox.pdmodel PDDocument]))
 
@@ -93,16 +94,44 @@
 (defn classify
   [all-freqs classes path]
   (let [text (file-freqs path)
-        prob-fn #(prob all-freqs (count classes) %1 %2)]
-    (map (fn [c]
-           (vector (:name c) (calculate-class #(prob-fn c %) text c)))
-         classes)))
+        prob-fn #(prob all-freqs (count classes) %1 %2)
+        scores (into {} (map (fn [c]
+                               {(:name c) (split-pow Math/E (calculate-class #(prob-fn c %) text c))})
+                             classes))]
+    (relative-scores scores)))
 
 (defn select-class
   [scores]
   (first
    (reduce (fn [[c1 v1] [c2 v2]] (if (> v1 v2) [c1 v1] [c2 v2]))
            scores)))
+
+(defn split-pow
+  "Calculate a non-integer BigDecimal power by calculating the exponent's
+   remainder separately.
+
+   b^(i+r) == b^i*b^r"
+  [base exp]
+  (let [base (BigDecimal. base)
+        exp (BigDecimal. exp)
+        r (.remainder exp BigDecimal/ONE)
+        i (.intValueExact (.subtract exp r))
+        int-pow (.pow base (int i) MathContext/DECIMAL64)
+        rem-pow (BigDecimal. (Math/pow base r))]
+    (.multiply int-pow rem-pow)))
+
+(defn truncate-big-decimal
+  [d n]
+  (-> d
+      (.setScale n RoundingMode/DOWN)
+      .doubleValue))
+
+(defn relative-scores
+  [scores]
+  (let [sum (reduce + (vals scores))]
+    (into {} (map (fn [[k v]]
+                    [k (truncate-big-decimal (.divide v sum MathContext/DECIMAL64) 4)])
+                  scores))))
 
 (defn test-doc
   [all-freqs classes class doc]
@@ -127,4 +156,5 @@
 (defn test-all
   [all-freqs classes]
   (map #(summarize-class-results % (test-class all-freqs classes %)) classes))
+
 
