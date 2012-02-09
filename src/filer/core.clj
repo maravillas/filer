@@ -95,7 +95,7 @@
                text)))
 
 (defn classify
-  [all-freqs classes path]
+  [{:keys [all-freqs classes] :as training-data} path]
   (let [text (file-freqs path)
         prob-fn #(prob all-freqs (count classes) %1 %2)
         scores (into {} (map (fn [c]
@@ -137,15 +137,15 @@
                   scores))))
 
 (defn test-doc
-  [all-freqs classes class doc]
-  (let [scores (classify all-freqs classes doc)]
+  [training-data class doc]
+  (let [scores (classify training-data doc)]
     {:correct (.endsWith (.getAbsolutePath (.getParentFile doc)) (select-class scores))
      :doc doc
      :scores scores}))
 
 (defn test-class
-  [all-freqs classes class]
-  (map #(test-doc all-freqs classes class %) (:test-data class)))
+  [training-data class]
+  (map #(test-doc training-data class %) (:test-data class)))
 
 (defn summarize-class-results
   [class results]
@@ -157,7 +157,7 @@
      :accuracy (if (zero? total) 0 (* 100.0 (/ correct total)))}))
 
 (defn test-all
-  [all-freqs classes]
-  (map #(summarize-class-results % (test-class all-freqs classes %)) classes))
+  [{:keys [all-freqs classes] :as training-data}]
+  (map #(summarize-class-results % (test-class training-data %)) classes))
 
 
