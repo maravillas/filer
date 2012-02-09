@@ -76,8 +76,11 @@
 
 (defn train
   [root]
-  (let [classes (map #(make-class % root) (populated-dirs root))]
-    (map train-class classes)))
+  (let [classes (map #(make-class % root) (populated-dirs root))
+        trained-classes (map train-class classes)
+        all-freqs (sum-freqs (map :freqs trained-classes))]
+    {:all-freqs all-freqs
+     :classes trained-classes}))
 
 (defn prob
   "Probability that word occurs in a class."
