@@ -99,7 +99,7 @@
   (let [text (file-freqs path)
         prob-fn #(prob all-freqs (count classes) %1 %2)
         scores (into {} (map (fn [c]
-                               {(:name c) (split-pow Math/E (calculate-class #(prob-fn c %) text c))})
+                               [(:name c) (split-pow Math/E (calculate-class #(prob-fn c %) text c))])
                              classes))]
     (relative-scores scores)))
 
@@ -132,9 +132,9 @@
 (defn relative-scores
   [scores]
   (let [sum (reduce + (vals scores))]
-    (into {} (map (fn [[k v]]
-                    [k (truncate-big-decimal (.divide v sum MathContext/DECIMAL64) 4)])
-                  scores))))
+    (zipmap (keys scores)
+            (map #(truncate-big-decimal (.divide % sum MathContext/DECIMAL64) 4)
+                 (vals scores)))))
 
 (defn test-doc
   [training-data class doc]
