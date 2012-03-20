@@ -94,21 +94,6 @@
           (map (fn [[word count]] (* count (Math/log (prob-fn word))))
                text)))
 
-(defn classify
-  [{:keys [all-freqs classes] :as training-data} path]
-  (let [text (file-freqs path)
-        prob-fn #(prob all-freqs (count classes) %1 %2)
-        scores (into {} (map (fn [c]
-                               [(:name c) (split-pow Math/E (calculate-class #(prob-fn c %) text c))])
-                             classes))]
-    (relative-scores scores)))
-
-(defn select-class
-  [scores]
-  (first
-   (reduce (fn [[c1 v1] [c2 v2]] (if (> v1 v2) [c1 v1] [c2 v2]))
-           scores)))
-
 (defn split-pow
   "Calculate a non-integer BigDecimal power by calculating the exponent's
    remainder separately.
@@ -135,6 +120,29 @@
     (zipmap (keys scores)
             (map #(truncate-big-decimal (.divide % sum MathContext/DECIMAL64) 4)
                  (vals scores)))))
+
+(defn classify
+  [{:keys [all-freqs classes] :as training-data} path]
+  (let [text (file-freqs path)
+        prob-fn #(prob all-freqs (count classes) %1 %2)
+        scores (into {} (map (fn [c]
+                               [(:name c) (split-pow Math/E (calculate-class #(prob-fn c %) text c))])
+                             classes))]
+    (relative-scores scores)))
+
+(defn classify-dir
+  [db dir]
+  (let [files (.listFiles dir pdf-filter)]
+    (map (fn [f] {:filename (.getName f)
+                  :path (.getPath f)
+                  :scores (classify db f)})
+         files)))
+
+(defn select-class
+  [scores]
+  (first
+   (reduce (fn [[c1 v1] [c2 v2]] (if (> v1 v2) [c1 v1] [c2 v2]))
+           scores)))
 
 (defn test-doc
   [training-data class doc]
